@@ -23,16 +23,16 @@ func main() {
 	http.HandleFunc("/api/auth/profile", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Profile))
 
 	// User management (admin only - RBAC)
-	// http.HandleFunc("/api/users", middleware.AdminMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
-	// 	switch r.Method {
-	// 	case http.MethodPost:
-	// 		handlers.CreateUser(w, r)
-	// 	case http.MethodGet:
-	// 		handlers.GetUsers(w, r)
-	// 	default:
-	// 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	// 	}
-	// }))
+	http.HandleFunc("/api/users", middleware.AdminMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		// case http.MethodPost:
+		// 	handlers.CreateUser(w, r)
+		case http.MethodGet:
+			handlers.GetUsers(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	fmt.Println("Server running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
