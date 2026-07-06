@@ -22,11 +22,9 @@ func main() {
 	http.HandleFunc("/api/auth/logout", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Logout))
 	http.HandleFunc("/api/auth/profile", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Profile))
 
-	// User management (admin only - RBAC)
+	// User management (admin only)
 	http.HandleFunc("/api/users", middleware.AdminMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-		// case http.MethodPost:
-		// 	handlers.CreateUser(w, r)
 		case http.MethodGet:
 			handlers.GetUsers(w, r)
 		default:
@@ -34,12 +32,14 @@ func main() {
 		}
 	}))
 
+	// Dashboard
+	http.HandleFunc("/api/dashboard", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Dashboard))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-
 		w.Write([]byte("Digital Signature API is running"))
 	})
 
