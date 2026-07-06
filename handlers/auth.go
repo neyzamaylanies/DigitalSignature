@@ -78,6 +78,11 @@ func Login(cfg config.Config) http.HandlerFunc {
 			return
 		}
 
+		if input.Email == "" || input.Password == "" {
+			http.Error(w, "Email and password are required", http.StatusBadRequest)
+			return
+		}
+
 		var user models.User
 		var hashedPassword string
 		err := db.DB.QueryRow(
@@ -134,7 +139,11 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value(middleware.UserIDKey).(int)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	var user models.User
 	err := db.DB.QueryRow(

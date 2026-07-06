@@ -28,7 +28,11 @@ func AuthMiddleware(secret string, next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		tokenStr := parts[1]
+
 		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
 			return []byte(secret), nil
 		})
 
@@ -43,11 +47,21 @@ func AuthMiddleware(secret string, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userID := int(claims["user_id"].(float64))
-		userRole := claims["user_role"].(string)
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			http.Error(w, "Invalid user ID in token", http.StatusUnauthorized)
+			return
+		}
 
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		userRole, ok := claims["user_role"].(string)
+		if !ok {
+			http.Error(w, "Invalid user role in token", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), UserIDKey, int(userIDFloat))
 		ctx = context.WithValue(ctx, UserRoleKey, userRole)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
@@ -55,11 +69,17 @@ func AuthMiddleware(secret string, next http.HandlerFunc) http.HandlerFunc {
 func AdminMiddleware(secret string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		AuthMiddleware(secret, func(w http.ResponseWriter, r *http.Request) {
-			role := r.Context().Value(UserRoleKey).(string)
+			role, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok {
+				http.Error(w, "Invalid role context", http.StatusUnauthorized)
+				return
+			}
+
 			if role != "admin" {
 				http.Error(w, "Forbidden: admin only", http.StatusForbidden)
 				return
 			}
+
 			next.ServeHTTP(w, r)
 		})(w, r)
 	}
