@@ -72,20 +72,44 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.Query("SELECT id, name, email, role, created_at FROM users")
+	rows, err := db.DB.Query(
+		"SELECT id, name, email, role, created_at FROM users ORDER BY id ASC",
+	)
 	if err != nil {
 		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var users []models.User
+	users := make([]models.User, 0)
+
 	for rows.Next() {
-		var u models.User
-		rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.CreatedAt)
-		users = append(users, u)
+		var user models.User
+
+		err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.Role,
+			&user.CreatedAt,
+		)
+		if err != nil {
+			http.Error(w, "Failed to scan user data", http.StatusInternalServerError)
+			return
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Failed to read user data", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(users); err != nil {
+		return
+	}
 }
