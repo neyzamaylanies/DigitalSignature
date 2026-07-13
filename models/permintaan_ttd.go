@@ -8,9 +8,9 @@ type PermintaanTTD struct {
 	UserID      int       `json:"user_id"`
 	Urutan      int       `json:"urutan"`
 	PageNumber  int       `json:"page_number"`
-	Width       float64   `json:"width"`
-	Height      float64   `json:"height"`
+	Width       *float64  `json:"width,omitempty"`
+	Height      *float64  `json:"height,omitempty"`
 	Status      string    `json:"status"`
-	AlasanTolak string    `json:"alasan_tolak,omitempty"`
+	AlasanTolak *string   `json:"alasan_tolak,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }

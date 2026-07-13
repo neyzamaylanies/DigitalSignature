@@ -36,7 +36,8 @@ func main() {
 	http.HandleFunc("/api/dashboard", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Dashboard))
 
 	http.HandleFunc("/api/dokumen/upload", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UploadDokumen))
-	// http.HandleFunc("/api/dokumen/ajukan-ttd", middleware.AuthMiddleware(cfg.JWTSecret, handlers.AjukanTandaTangan))
+	http.HandleFunc("/api/dokumen/ajukan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.AjukanTandaTangan),
+)
 	// http.HandleFunc("/api/dokumen", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumen))
 	// http.HandleFunc("/api/dokumen/", middleware.AuthMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
 	// 	switch r.Method {
