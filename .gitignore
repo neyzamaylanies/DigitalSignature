@@ -1,1 +1,5 @@
 .env
+uploads/documents/*
+uploads/signatures/*
+!uploads/documents/.gitkeep
+!uploads/signatures/.gitkeep
