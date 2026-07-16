@@ -12,6 +12,21 @@ import (
 	"digital-signature-api/utils"
 )
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	cfg := config.Load()
 	db.Init(cfg)
@@ -36,8 +51,7 @@ func main() {
 	http.HandleFunc("/api/dashboard", middleware.AuthMiddleware(cfg.JWTSecret, handlers.Dashboard))
 
 	http.HandleFunc("/api/dokumen/upload", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UploadDokumen))
-	http.HandleFunc("/api/dokumen/ajukan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.AjukanTandaTangan),
-)
+	http.HandleFunc("/api/dokumen/ajukan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.AjukanTandaTangan))
 	// http.HandleFunc("/api/dokumen", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumen))
 	// http.HandleFunc("/api/dokumen/", middleware.AuthMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
 	// 	switch r.Method {
@@ -59,5 +73,5 @@ func main() {
 	})
 
 	fmt.Println("Server running on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(http.DefaultServeMux)))
 }
