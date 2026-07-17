@@ -44,6 +44,8 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer drainBody(r)
+
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestUploadSize)
 	if err := r.ParseMultipartForm(maxRequestUploadSize); err != nil {
 		var maxBytesErr *http.MaxBytesError

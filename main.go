@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"digital-signature-api/config"
 	"digital-signature-api/db"
@@ -72,6 +73,11 @@ func main() {
 		w.Write([]byte("Digital Signature API is running"))
 	})
 
-	fmt.Println("Server running on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(http.DefaultServeMux)))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	fmt.Printf("Server running on port %s...\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(http.DefaultServeMux)))
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"digital-signature-api/config"
 
@@ -28,6 +29,11 @@ func Init(cfg config.Config) {
 	if err != nil {
 		log.Fatal("Database not reachable:", err)
 	}
+
+	DB.SetMaxOpenConns(10)
+	DB.SetMaxIdleConns(5)
+	DB.SetConnMaxLifetime(5 * time.Minute)
+	DB.SetConnMaxIdleTime(2 * time.Minute)
 
 	log.Println("Database connected!")
 }

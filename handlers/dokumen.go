@@ -23,6 +23,11 @@ const (
 	documentDir   = "uploads/documents"
 )
 
+func drainBody(r *http.Request) {
+	io.Copy(io.Discard, r.Body)
+	r.Body.Close()
+}
+
 var allowedJenis = map[string]bool{
 	"Akademik":      true,
 	"Keuangan":      true,
@@ -45,6 +50,8 @@ func UploadDokumen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	defer drainBody(r)
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
