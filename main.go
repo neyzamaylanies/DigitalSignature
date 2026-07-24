@@ -70,6 +70,15 @@ func main() {
 	// 	}
 	// }))
 
+	// permintaan_ttd view
+	http.HandleFunc("GET /api/permintaan-ttd", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListPermintaanTTD))
+	http.HandleFunc("GET /api/permintaan-ttd/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetPermintaanTTDDetail))
+
+	// permintaan ttd reject, approve, sign
+	http.HandleFunc("POST /api/permintaan-ttd/{id}/setujui", middleware.AuthMiddleware(cfg.JWTSecret, handlers.SetujuiPermintaanTTD))
+	http.HandleFunc("POST /api/permintaan-ttd/{id}/tolak", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TolakPermintaanTTD))
+	http.HandleFunc("POST /api/dokumen/{id}/tanda-tangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TandaTanganiSendiri))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
