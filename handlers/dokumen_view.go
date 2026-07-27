@@ -19,10 +19,6 @@ var validDokumenStatus = map[string]bool{
 	"ditolak":      true,
 }
 
-// ==========================================================
-// Week 8 - Dokumen Diunggah (dokumen yang pernah diunggah user)
-// ==========================================================
-
 type DokumenDiunggahItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -240,10 +236,6 @@ func GetDokumenDiunggahDetail(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(detail)
 }
 
-// ==========================================================
-// Week 9 - Dokumen Ditandatangani (riwayat dokumen selesai milik user)
-// ==========================================================
-
 type DokumenDitandatanganiItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -252,10 +244,6 @@ type DokumenDitandatanganiItem struct {
 	FilePath      string    `json:"file_path"`
 	FinalFilePath *string   `json:"final_file_path,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
-
-	// NOTE: sertifikat metadata belum ditambahkan di sini karena modul
-	// sertifikat digital (Minggu 10) belum dibangun. Tinggal nambahin
-	// JOIN ke tabel sertifikat/transaksi_sertifikat begitu endpoint-nya jadi.
 }
 
 // ListDokumenDitandatangani returns the history of documents owned by the
