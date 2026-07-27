@@ -79,6 +79,13 @@ func main() {
 	http.HandleFunc("POST /api/permintaan-ttd/{id}/tolak", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TolakPermintaanTTD))
 	http.HandleFunc("POST /api/dokumen/{id}/tanda-tangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TandaTanganiSendiri))
 
+	// dokumen diunggah
+	http.HandleFunc("GET /api/dokumen/diunggah", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDiunggah))
+	http.HandleFunc("GET /api/dokumen/diunggah/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDiunggahDetail))
+
+	// dokumen ditandatangani
+	http.HandleFunc("GET /api/dokumen/ditandatangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDitandatangani))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
