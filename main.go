@@ -74,17 +74,31 @@ func main() {
 	http.HandleFunc("GET /api/permintaan-ttd", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListPermintaanTTD))
 	http.HandleFunc("GET /api/permintaan-ttd/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetPermintaanTTDDetail))
 
+	// dokumen diunggah & dokumen ditandatangani
+	http.HandleFunc("GET /api/dokumen/diunggah", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDiunggah))
+	http.HandleFunc("GET /api/dokumen/diunggah/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDiunggahDetail))
+	http.HandleFunc("GET /api/dokumen/ditandatangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDitandatangani))
+
+	// unduh PDF
+	http.HandleFunc("GET /api/dokumen/{id}/download", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDownload))
+
 	// permintaan ttd reject, approve, sign
 	http.HandleFunc("POST /api/permintaan-ttd/{id}/setujui", middleware.AuthMiddleware(cfg.JWTSecret, handlers.SetujuiPermintaanTTD))
 	http.HandleFunc("POST /api/permintaan-ttd/{id}/tolak", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TolakPermintaanTTD))
 	http.HandleFunc("POST /api/dokumen/{id}/tanda-tangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.TandaTanganiSendiri))
 
-	// dokumen diunggah
-	http.HandleFunc("GET /api/dokumen/diunggah", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDiunggah))
-	http.HandleFunc("GET /api/dokumen/diunggah/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDiunggahDetail))
+	// sertifikat digital
+	http.HandleFunc("POST /api/sertifikat", middleware.AuthMiddleware(cfg.JWTSecret, handlers.CreateSertifikat))
+	http.HandleFunc("GET /api/sertifikat", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListSertifikat))
+	http.HandleFunc("POST /api/sertifikat/{id}/revoke", middleware.AuthMiddleware(cfg.JWTSecret, handlers.RevokeSertifikat))
 
-	// dokumen ditandatangani
-	http.HandleFunc("GET /api/dokumen/ditandatangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDitandatangani))
+	// gambar tanda tangan & paraf
+	http.HandleFunc("POST /api/tanda-tangan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UploadTandaTangan))
+	http.HandleFunc("GET /api/tanda-tangan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListTandaTangan))
+	http.HandleFunc("GET /api/tanda-tangan/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetTandaTanganDetail))
+	http.HandleFunc("GET /api/tanda-tangan/{id}/preview", middleware.AuthMiddleware(cfg.JWTSecret, handlers.PreviewTandaTangan))
+	http.HandleFunc("PUT /api/tanda-tangan/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UpdateTandaTangan))
+	http.HandleFunc("DELETE /api/tanda-tangan/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.DeleteTandaTangan))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

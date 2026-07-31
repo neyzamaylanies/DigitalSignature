@@ -27,6 +27,8 @@ type signerInput struct {
 	UserID     int      `json:"user_id"`
 	Urutan     int      `json:"urutan"`
 	PageNumber int      `json:"page_number"`
+	KoordinatX *float64 `json:"koordinat_x,omitempty"`
+	KoordinatY *float64 `json:"koordinat_y,omitempty"`
 	Width      *float64 `json:"width,omitempty"`
 	Height     *float64 `json:"height,omitempty"`
 }
@@ -60,15 +62,15 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 	judul := strings.TrimSpace(r.FormValue("judul"))
 	deskripsi := strings.TrimSpace(r.FormValue("deskripsi"))
 	pesan := strings.TrimSpace(r.FormValue("pesan"))
-	jenis := strings.TrimSpace(r.FormValue("jenis"))
+	tipe := strings.TrimSpace(r.FormValue("tipe"))
 	penandaTanganJSON := r.FormValue("penanda_tangan")
 
-	if judul == "" || jenis == "" || penandaTanganJSON == "" {
-		http.Error(w, "Judul, jenis, and penanda_tangan are required", http.StatusBadRequest)
+	if judul == "" || tipe == "" || penandaTanganJSON == "" {
+		http.Error(w, "Judul, tipe, and penanda_tangan are required", http.StatusBadRequest)
 		return
 	}
-	if !allowedJenis[jenis] {
-		http.Error(w, "Jenis dokumen is not valid", http.StatusBadRequest)
+	if !allowedTipeDokumen[tipe] {
+		http.Error(w, "Tipe dokumen is not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -85,8 +87,24 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Each signer must have user_id, urutan, and page_number", http.StatusBadRequest)
 			return
 		}
+		if signer.KoordinatX != nil && (*signer.KoordinatX < 0 || *signer.KoordinatX > 100) {
+			http.Error(w, "koordinat_x must be between 0 and 100", http.StatusBadRequest)
+			return
+		}
+		if signer.KoordinatY != nil && (*signer.KoordinatY < 0 || *signer.KoordinatY > 100) {
+			http.Error(w, "koordinat_y must be between 0 and 100", http.StatusBadRequest)
+			return
+		}
+		if signer.Width != nil && *signer.Width <= 0 {
+			http.Error(w, "width must be greater than 0", http.StatusBadRequest)
+			return
+		}
+		if signer.Height != nil && *signer.Height <= 0 {
+			http.Error(w, "height must be greater than 0", http.StatusBadRequest)
+			return
+		}
 		if signer.UserID == pengajuID {
-			http.Error(w, "Pengaju cannot be a signer for pihak_lain document", http.StatusBadRequest)
+			http.Error(w, "Pengaju cannot be a signer for request document", http.StatusBadRequest)
 			return
 		}
 		if seenUser[signer.UserID] {
@@ -153,7 +171,7 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dokumenID, requests, err := createDocumentRequest(
-		pengajuID, judul, deskripsi, pesan, jenis, filepath.ToSlash(storedPath), penandaTangan,
+		pengajuID, judul, deskripsi, pesan, tipe, filepath.ToSlash(storedPath), penandaTangan,
 	)
 	if err != nil {
 		_ = os.Remove(storedPath)
@@ -166,13 +184,13 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":        "Document request created successfully",
 		"dokumen_id":     dokumenID,
-		"tipe":           "pihak_lain",
+		"jenis":          "request",
 		"status":         "menunggu_ttd",
 		"permintaan_ttd": requests,
 	})
 }
 
-func createDocumentRequest(pengajuID int, judul, deskripsi, pesan, jenis, filePath string, signers []signerInput) (int, []models.PermintaanTTD, error) {
+func createDocumentRequest(pengajuID int, judul, deskripsi, pesan, tipe, filePath string, signers []signerInput) (int, []models.PermintaanTTD, error) {
 	tx, err := db.DB.Begin()
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to start transaction")
@@ -191,10 +209,10 @@ func createDocumentRequest(pengajuID int, judul, deskripsi, pesan, jenis, filePa
 
 	var dokumenID int
 	err = tx.QueryRow(`
-		INSERT INTO dokumen (user_id, judul, deskripsi, pesan, jenis, tipe, file_path, status)
-		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, 'pihak_lain', $6, 'menunggu_ttd')
+		INSERT INTO dokumen (user_id, judul, deskripsi, pesan, tipe, jenis, file_path, status)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, 'request', $6, 'menunggu_ttd')
 		RETURNING id`,
-		pengajuID, judul, deskripsi, pesan, jenis, filePath,
+		pengajuID, judul, deskripsi, pesan, tipe, filePath,
 	).Scan(&dokumenID)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to save document data")
@@ -205,16 +223,18 @@ func createDocumentRequest(pengajuID int, judul, deskripsi, pesan, jenis, filePa
 		var request models.PermintaanTTD
 		var alasanTolak sql.NullString
 		err := tx.QueryRow(`
-			INSERT INTO permintaan_ttd (dokumen_id, user_id, urutan, page_number, width, height, status)
-			VALUES ($1, $2, $3, $4, $5, $6, 'menunggu')
-			RETURNING id, dokumen_id, user_id, urutan, page_number, width, height, status, alasan_tolak, created_at`,
-			dokumenID, signer.UserID, signer.Urutan, signer.PageNumber, signer.Width, signer.Height,
+			INSERT INTO permintaan_ttd (dokumen_id, user_id, urutan, page_number, koordinat_x, koordinat_y, width, height, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'menunggu')
+			RETURNING id, dokumen_id, user_id, urutan, page_number, koordinat_x, koordinat_y, width, height, status, alasan_tolak, created_at`,
+			dokumenID, signer.UserID, signer.Urutan, signer.PageNumber, signer.KoordinatX, signer.KoordinatY, signer.Width, signer.Height,
 		).Scan(
 			&request.ID,
 			&request.DokumenID,
 			&request.UserID,
 			&request.Urutan,
 			&request.PageNumber,
+			&request.KoordinatX,
+			&request.KoordinatY,
 			&request.Width,
 			&request.Height,
 			&request.Status,

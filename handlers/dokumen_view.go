@@ -3,7 +3,11 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +23,10 @@ var validDokumenStatus = map[string]bool{
 	"ditolak":      true,
 }
 
+// ==========================================================
+// Week 8 - Dokumen Diunggah (dokumen yang pernah diunggah user)
+// ==========================================================
+
 type DokumenDiunggahItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -31,13 +39,13 @@ type DokumenDiunggahItem struct {
 	CreatedAt     time.Time `json:"created_at"`
 
 	TotalPenandaTangan int `json:"total_penanda_tangan"`
-	DisetujuiCount     int `json:"disetujui_count"`
+	SelesaiCount       int `json:"selesai_count"`
 	DitolakCount       int `json:"ditolak_count"`
 	MenungguCount      int `json:"menunggu_count"`
 }
 
 // ListDokumenDiunggah returns all documents uploaded by the authenticated user
-// (both tipe=sendiri and tipe=pihak_lain), with signer progress counts.
+// (both jenis=self and jenis=request), with signer progress counts.
 func ListDokumenDiunggah(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -61,7 +69,7 @@ func ListDokumenDiunggah(w http.ResponseWriter, r *http.Request) {
 			d.id, d.judul, d.jenis, d.deskripsi, d.tipe, d.status,
 			d.file_path, d.final_file_path, d.created_at,
 			COUNT(pt.id) AS total_penanda_tangan,
-			COUNT(*) FILTER (WHERE pt.status = 'disetujui') AS disetujui_count,
+			COUNT(*) FILTER (WHERE pt.status = 'selesai') AS selesai_count,
 			COUNT(*) FILTER (WHERE pt.status = 'ditolak') AS ditolak_count,
 			COUNT(*) FILTER (WHERE pt.status = 'menunggu') AS menunggu_count
 		FROM dokumen d
@@ -90,7 +98,7 @@ func ListDokumenDiunggah(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&item.ID, &item.Judul, &item.Jenis, &deskripsi, &item.Tipe, &item.Status,
 			&item.FilePath, &finalFilePath, &item.CreatedAt,
-			&item.TotalPenandaTangan, &item.DisetujuiCount, &item.DitolakCount, &item.MenungguCount,
+			&item.TotalPenandaTangan, &item.SelesaiCount, &item.DitolakCount, &item.MenungguCount,
 		); err != nil {
 			http.Error(w, "Failed to read documents", http.StatusInternalServerError)
 			return
@@ -117,7 +125,7 @@ func ListDokumenDiunggah(w http.ResponseWriter, r *http.Request) {
 }
 
 // DokumenDiunggahDetail is the detail response for a single uploaded document,
-// including full signer progress (only populated when tipe = pihak_lain).
+// including full signer progress (only populated when jenis = request).
 type DokumenDiunggahDetail struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -134,12 +142,16 @@ type DokumenDiunggahDetail struct {
 }
 
 type SignerDetail struct {
-	UserID      int     `json:"user_id"`
-	Nama        string  `json:"nama"`
-	Urutan      int     `json:"urutan"`
-	PageNumber  int     `json:"page_number"`
-	Status      string  `json:"status"`
-	AlasanTolak *string `json:"alasan_tolak,omitempty"`
+	UserID      int      `json:"user_id"`
+	Nama        string   `json:"nama"`
+	Urutan      int      `json:"urutan"`
+	PageNumber  int      `json:"page_number"`
+	KoordinatX  *float64 `json:"koordinat_x,omitempty"`
+	KoordinatY  *float64 `json:"koordinat_y,omitempty"`
+	Width       *float64 `json:"width,omitempty"`
+	Height      *float64 `json:"height,omitempty"`
+	Status      string   `json:"status"`
+	AlasanTolak *string  `json:"alasan_tolak,omitempty"`
 }
 
 // GetDokumenDiunggahDetail returns detail of one uploaded document owned by
@@ -200,7 +212,7 @@ func GetDokumenDiunggahDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(`
-		SELECT pt.user_id, u.name, pt.urutan, pt.page_number, pt.status, pt.alasan_tolak
+		SELECT pt.user_id, u.name, pt.urutan, pt.page_number, pt.koordinat_x, pt.koordinat_y, pt.width, pt.height, pt.status, pt.alasan_tolak
 		FROM permintaan_ttd pt
 		JOIN users u ON u.id = pt.user_id
 		WHERE pt.dokumen_id = $1
@@ -217,7 +229,7 @@ func GetDokumenDiunggahDetail(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var signer SignerDetail
 		var alasanTolak sql.NullString
-		if err := rows.Scan(&signer.UserID, &signer.Nama, &signer.Urutan, &signer.PageNumber, &signer.Status, &alasanTolak); err != nil {
+		if err := rows.Scan(&signer.UserID, &signer.Nama, &signer.Urutan, &signer.PageNumber, &signer.KoordinatX, &signer.KoordinatY, &signer.Width, &signer.Height, &signer.Status, &alasanTolak); err != nil {
 			http.Error(w, "Failed to read signer progress", http.StatusInternalServerError)
 			return
 		}
@@ -236,6 +248,10 @@ func GetDokumenDiunggahDetail(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(detail)
 }
 
+// ==========================================================
+// Week 9 - Dokumen Ditandatangani (riwayat dokumen selesai milik user)
+// ==========================================================
+
 type DokumenDitandatanganiItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -244,6 +260,10 @@ type DokumenDitandatanganiItem struct {
 	FilePath      string    `json:"file_path"`
 	FinalFilePath *string   `json:"final_file_path,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
+
+	// NOTE: sertifikat metadata belum ditambahkan di sini karena modul
+	// sertifikat digital (Minggu 10) belum dibangun. Tinggal nambahin
+	// JOIN ke tabel sertifikat/transaksi_sertifikat begitu endpoint-nya jadi.
 }
 
 // ListDokumenDitandatangani returns the history of documents owned by the
@@ -298,4 +318,95 @@ func ListDokumenDitandatangani(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"dokumen": items,
 	})
+}
+
+// ==========================================================
+// Download PDF (bagian dari Minggu 9: "link unduh PDF")
+// Versi disk lokal Railway. Kalau nanti pindah ke R2, tinggal ganti
+// bagian "serve dari disk" di bawah jadi generate presigned URL.
+// ==========================================================
+
+var unsafeFilenameChars = regexp.MustCompile(`[^a-zA-Z0-9\-_]+`)
+
+func sanitizeFilename(name string) string {
+	cleaned := unsafeFilenameChars.ReplaceAllString(strings.TrimSpace(name), "_")
+	cleaned = strings.Trim(cleaned, "_")
+	if cleaned == "" {
+		return "dokumen"
+	}
+	if len(cleaned) > 100 {
+		cleaned = cleaned[:100]
+	}
+	return cleaned
+}
+
+// GetDokumenDownload streams the PDF of a document owned by the authenticated
+// user directly from local disk storage.
+func GetDokumenDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	dokumenID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || dokumenID <= 0 {
+		http.Error(w, "Invalid dokumen id", http.StatusBadRequest)
+		return
+	}
+
+	var ownerUserID int
+	var judul string
+	var filePath string
+	var finalFilePath sql.NullString
+
+	err = db.DB.QueryRow(`
+		SELECT user_id, judul, file_path, final_file_path
+		FROM dokumen
+		WHERE id = $1`,
+		dokumenID,
+	).Scan(&ownerUserID, &judul, &filePath, &finalFilePath)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Document not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Failed to fetch document", http.StatusInternalServerError)
+		return
+	}
+
+	if ownerUserID != userID {
+		http.Error(w, "Forbidden: this document does not belong to you", http.StatusForbidden)
+		return
+	}
+
+	// Prefer the finalized file (set once fully signed); fall back to the
+	// originally uploaded file otherwise.
+	storedPath := filePath
+	if finalFilePath.Valid && finalFilePath.String != "" {
+		storedPath = finalFilePath.String
+	}
+
+	// Defense in depth: only allow serving files inside our own uploads dir,
+	// even though storedPath always comes from our own DB, not user input.
+	cleanPath := filepath.Clean(storedPath)
+	if !strings.HasPrefix(cleanPath, "uploads"+string(filepath.Separator)) && cleanPath != "uploads" {
+		http.Error(w, "Invalid file location", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := os.Stat(cleanPath); err != nil {
+		http.Error(w, "File is not available on the server (may have been lost after a redeploy)", http.StatusNotFound)
+		return
+	}
+
+	downloadName := fmt.Sprintf("%s.pdf", sanitizeFilename(judul))
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
+	http.ServeFile(w, r, cleanPath)
 }

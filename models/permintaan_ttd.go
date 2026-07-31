@@ -8,6 +8,8 @@ type PermintaanTTD struct {
 	UserID      int       `json:"user_id"`
 	Urutan      int       `json:"urutan"`
 	PageNumber  int       `json:"page_number"`
+	KoordinatX  *float64  `json:"koordinat_x,omitempty"`
+	KoordinatY  *float64  `json:"koordinat_y,omitempty"`
 	Width       *float64  `json:"width,omitempty"`
 	Height      *float64  `json:"height,omitempty"`
 	Status      string    `json:"status"`

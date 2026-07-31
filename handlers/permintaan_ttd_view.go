@@ -13,9 +13,9 @@ import (
 )
 
 var validPermintaanStatus = map[string]bool{
-	"menunggu":  true,
-	"disetujui": true,
-	"ditolak":   true,
+	"menunggu": true,
+	"selesai":  true,
+	"ditolak":  true,
 }
 
 type PermintaanTTDListItem struct {
@@ -28,6 +28,7 @@ type PermintaanTTDListItem struct {
 	CreatedAt   time.Time `json:"created_at"`
 
 	DokumenJudul     string  `json:"dokumen_judul"`
+	DokumenTipe      string  `json:"dokumen_tipe"`
 	DokumenJenis     string  `json:"dokumen_jenis"`
 	DokumenDeskripsi *string `json:"dokumen_deskripsi,omitempty"`
 	PengajuID        int     `json:"pengaju_id"`
@@ -56,7 +57,7 @@ func ListPermintaanTTD(w http.ResponseWriter, r *http.Request) {
 		SELECT
 			pt.id, pt.dokumen_id, pt.urutan, pt.page_number, pt.status,
 			pt.alasan_tolak, pt.created_at,
-			d.judul, d.jenis, d.deskripsi,
+			d.judul, d.tipe, d.jenis, d.deskripsi,
 			d.user_id, u.name
 		FROM permintaan_ttd pt
 		JOIN dokumen d ON d.id = pt.dokumen_id
@@ -85,7 +86,7 @@ func ListPermintaanTTD(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&item.ID, &item.DokumenID, &item.Urutan, &item.PageNumber, &item.Status,
 			&alasanTolak, &item.CreatedAt,
-			&item.DokumenJudul, &item.DokumenJenis, &dokumenDeskripsi,
+			&item.DokumenJudul, &item.DokumenTipe, &item.DokumenJenis, &dokumenDeskripsi,
 			&item.PengajuID, &item.PengajuNama,
 		); err != nil {
 			http.Error(w, "Failed to read signing requests", http.StatusInternalServerError)
@@ -125,6 +126,8 @@ type PermintaanTTDDetail struct {
 	DokumenID   int       `json:"dokumen_id"`
 	Urutan      int       `json:"urutan"`
 	PageNumber  int       `json:"page_number"`
+	KoordinatX  *float64  `json:"koordinat_x,omitempty"`
+	KoordinatY  *float64  `json:"koordinat_y,omitempty"`
 	Width       *float64  `json:"width,omitempty"`
 	Height      *float64  `json:"height,omitempty"`
 	Status      string    `json:"status"`
@@ -132,6 +135,7 @@ type PermintaanTTDDetail struct {
 	CreatedAt   time.Time `json:"created_at"`
 
 	DokumenJudul     string  `json:"dokumen_judul"`
+	DokumenTipe      string  `json:"dokumen_tipe"`
 	DokumenJenis     string  `json:"dokumen_jenis"`
 	DokumenDeskripsi *string `json:"dokumen_deskripsi,omitempty"`
 	DokumenPesan     *string `json:"dokumen_pesan,omitempty"`
@@ -168,9 +172,9 @@ func GetPermintaanTTDDetail(w http.ResponseWriter, r *http.Request) {
 
 	err = db.DB.QueryRow(`
 		SELECT
-			pt.id, pt.dokumen_id, pt.user_id, pt.urutan, pt.page_number, pt.width, pt.height,
+			pt.id, pt.dokumen_id, pt.user_id, pt.urutan, pt.page_number, pt.koordinat_x, pt.koordinat_y, pt.width, pt.height,
 			pt.status, pt.alasan_tolak, pt.created_at,
-			d.judul, d.jenis, d.deskripsi, d.pesan, d.file_path,
+			d.judul, d.tipe, d.jenis, d.deskripsi, d.pesan, d.file_path,
 			d.user_id, u.name
 		FROM permintaan_ttd pt
 		JOIN dokumen d ON d.id = pt.dokumen_id
@@ -179,9 +183,9 @@ func GetPermintaanTTDDetail(w http.ResponseWriter, r *http.Request) {
 		permintaanID,
 	).Scan(
 		&detail.ID, &detail.DokumenID, &ownerUserID, &detail.Urutan, &detail.PageNumber,
-		&detail.Width, &detail.Height,
+		&detail.KoordinatX, &detail.KoordinatY, &detail.Width, &detail.Height,
 		&detail.Status, &alasanTolak, &detail.CreatedAt,
-		&detail.DokumenJudul, &detail.DokumenJenis, &dokumenDeskripsi, &dokumenPesan, &detail.DokumenFilePath,
+		&detail.DokumenJudul, &detail.DokumenTipe, &detail.DokumenJenis, &dokumenDeskripsi, &dokumenPesan, &detail.DokumenFilePath,
 		&detail.PengajuID, &detail.PengajuNama,
 	)
 	if err == sql.ErrNoRows {
@@ -241,7 +245,7 @@ func GetPermintaanTTDDetail(w http.ResponseWriter, r *http.Request) {
 	giliran := detail.Status == "menunggu"
 	if giliran {
 		for _, signer := range signers {
-			if signer.Urutan < detail.Urutan && signer.Status != "disetujui" {
+			if signer.Urutan < detail.Urutan && signer.Status != "selesai" {
 				giliran = false
 				break
 			}

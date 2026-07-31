@@ -28,7 +28,7 @@ func drainBody(r *http.Request) {
 	r.Body.Close()
 }
 
-var allowedJenis = map[string]bool{
+var allowedTipeDokumen = map[string]bool{
 	"Akademik":      true,
 	"Keuangan":      true,
 	"SDM":           true,
@@ -67,14 +67,14 @@ func UploadDokumen(w http.ResponseWriter, r *http.Request) {
 	judul := strings.TrimSpace(r.FormValue("judul"))
 	deskripsi := strings.TrimSpace(r.FormValue("deskripsi"))
 	pesan := strings.TrimSpace(r.FormValue("pesan"))
-	jenis := strings.TrimSpace(r.FormValue("jenis"))
+	tipe := strings.TrimSpace(r.FormValue("tipe"))
 
-	if judul == "" || jenis == "" {
-		http.Error(w, "Judul and jenis are required", http.StatusBadRequest)
+	if judul == "" || tipe == "" {
+		http.Error(w, "Judul and tipe are required", http.StatusBadRequest)
 		return
 	}
-	if !allowedJenis[jenis] {
-		http.Error(w, "Jenis dokumen is not valid", http.StatusBadRequest)
+	if !allowedTipeDokumen[tipe] {
+		http.Error(w, "Tipe dokumen is not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -129,7 +129,7 @@ func UploadDokumen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dokumen, err := insertDokumen(userID, judul, deskripsi, pesan, jenis, filepath.ToSlash(storedPath))
+	dokumen, err := insertDokumen(userID, judul, deskripsi, pesan, tipe, filepath.ToSlash(storedPath))
 	if err != nil {
 		_ = os.Remove(storedPath)
 		http.Error(w, "Failed to save document data", http.StatusInternalServerError)
@@ -144,15 +144,15 @@ func UploadDokumen(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func insertDokumen(userID int, judul, deskripsi, pesan, jenis, filePath string) (models.Dokumen, error) {
+func insertDokumen(userID int, judul, deskripsi, pesan, tipe, filePath string) (models.Dokumen, error) {
 	var dokumen models.Dokumen
 	var deskripsiDB, pesanDB, finalFilePathDB sql.NullString
 
 	err := db.DB.QueryRow(`
-		INSERT INTO dokumen (user_id, judul, deskripsi, pesan, jenis, tipe, file_path, status)
-		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, 'sendiri', $6, 'draft')
+		INSERT INTO dokumen (user_id, judul, deskripsi, pesan, tipe, jenis, file_path, status)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, 'self', $6, 'draft')
 		RETURNING id, user_id, judul, deskripsi, pesan, jenis, tipe, file_path, final_file_path, status, created_at`,
-		userID, judul, deskripsi, pesan, jenis, filePath,
+		userID, judul, deskripsi, pesan, tipe, filePath,
 	).Scan(
 		&dokumen.ID,
 		&dokumen.UserID,

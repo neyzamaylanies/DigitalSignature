@@ -125,6 +125,8 @@ CREATE TABLE public.permintaan_ttd (
     user_id integer NOT NULL,
     urutan integer NOT NULL,
     page_number integer NOT NULL,
+    koordinat_x double precision,
+    koordinat_y double precision,
     width double precision,
     height double precision,
     status character varying(50) DEFAULT 'menunggu'::character varying,
@@ -575,4 +577,3 @@ ALTER TABLE ONLY public.transaksi_sertifikat
 --
 
 \unrestrict ENa5tYqMeDm2OmBPZjW5mcssgKtNYtVNaOge2n8stHDNNvjaiN1dgoDFqvhGLk8
-

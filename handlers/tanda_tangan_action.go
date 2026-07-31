@@ -67,7 +67,7 @@ func SetujuiPermintaanTTD(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(`
 		SELECT EXISTS(
 			SELECT 1 FROM permintaan_ttd
-			WHERE dokumen_id = $1 AND urutan < $2 AND status <> 'disetujui'
+			WHERE dokumen_id = $1 AND urutan < $2 AND status <> 'selesai'
 		)`,
 		dokumenID, urutan,
 	).Scan(&belumGiliran); err != nil {
@@ -80,7 +80,7 @@ func SetujuiPermintaanTTD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := tx.Exec(
-		`UPDATE permintaan_ttd SET status = 'disetujui' WHERE id = $1`,
+		`UPDATE permintaan_ttd SET status = 'selesai' WHERE id = $1`,
 		permintaanID,
 	); err != nil {
 		http.Error(w, "Failed to update signing request", http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func TolakPermintaanTTD(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(`
 		SELECT EXISTS(
 			SELECT 1 FROM permintaan_ttd
-			WHERE dokumen_id = $1 AND urutan < $2 AND status <> 'disetujui'
+			WHERE dokumen_id = $1 AND urutan < $2 AND status <> 'selesai'
 		)`,
 		dokumenID, urutan,
 	).Scan(&belumGiliran); err != nil {
@@ -262,14 +262,14 @@ func TandaTanganiSendiri(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var ownerUserID int
-	var tipe, status string
+	var jenis, status string
 	err = tx.QueryRow(`
-		SELECT user_id, tipe, status
+		SELECT user_id, jenis, status
 		FROM dokumen
 		WHERE id = $1
 		FOR UPDATE`,
 		dokumenID,
-	).Scan(&ownerUserID, &tipe, &status)
+	).Scan(&ownerUserID, &jenis, &status)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Document not found", http.StatusNotFound)
 		return
@@ -283,7 +283,7 @@ func TandaTanganiSendiri(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden: this document does not belong to you", http.StatusForbidden)
 		return
 	}
-	if tipe != "sendiri" {
+	if jenis != "self" {
 		http.Error(w, "This document is not a self-signing document", http.StatusBadRequest)
 		return
 	}
