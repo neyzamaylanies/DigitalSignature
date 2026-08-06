@@ -27,6 +27,21 @@ func generatePublicKey(userID int) (string, error) {
 	return fmt.Sprintf("SIMULATED-PUBLIC-KEY-USER-%d-%s", userID, hex.EncodeToString(randomBytes)), nil
 }
 
+// expireDueCertificates lazily flips any certificate whose valid_until has
+// passed from 'active' to 'expired'. There's no cron/scheduler in this
+// project, so instead of a background job we just run this update right
+// before any endpoint reads or relies on certificate status — cheap no-op
+// when nothing is due, and it means status is never stale by more than the
+// time since the last relevant request. Accepts execer so it can run either
+// standalone (db.DB) or inside an existing transaction (*sql.Tx).
+func expireDueCertificates(exec execer) error {
+	_, err := exec.Exec(`
+		UPDATE sertifikat
+		SET status = 'expired'
+		WHERE status = 'active' AND valid_until < now()`)
+	return err
+}
+
 func CreateSertifikat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -36,6 +51,11 @@ func CreateSertifikat(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := expireDueCertificates(db.DB); err != nil {
+		http.Error(w, "Failed to check existing certificate", http.StatusInternalServerError)
 		return
 	}
 
@@ -84,6 +104,9 @@ func CreateSertifikat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = insertLogAktivitas(db.DB, userID, nil, "create_certificate",
+		fmt.Sprintf("User membuat sertifikat digital %s", sertifikat.SerialNumber))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -101,6 +124,11 @@ func ListSertifikat(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := expireDueCertificates(db.DB); err != nil {
+		http.Error(w, "Failed to retrieve certificates", http.StatusInternalServerError)
 		return
 	}
 
@@ -143,7 +171,7 @@ func ListSertifikat(w http.ResponseWriter, r *http.Request) {
 }
 
 func RevokeSertifikat(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPatch {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -186,8 +214,29 @@ func RevokeSertifikat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden: this certificate does not belong to you", http.StatusForbidden)
 		return
 	}
+
+	// The row is already locked (FOR UPDATE above), so flip it to 'expired'
+	// in-memory too if it's overdue — keeps this check consistent with what
+	// ListSertifikat/CreateSertifikat would report right now.
+	var validUntil time.Time
+	if err := tx.QueryRow(`SELECT valid_until FROM sertifikat WHERE id = $1`, sertifikatID).Scan(&validUntil); err != nil {
+		http.Error(w, "Failed to fetch certificate", http.StatusInternalServerError)
+		return
+	}
+	if status == "active" && validUntil.Before(time.Now()) {
+		status = "expired"
+		if _, err := tx.Exec(`UPDATE sertifikat SET status = 'expired' WHERE id = $1`, sertifikatID); err != nil {
+			http.Error(w, "Failed to update certificate status", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if status == "revoked" {
 		http.Error(w, "Certificate is already revoked", http.StatusBadRequest)
+		return
+	}
+	if status == "expired" {
+		http.Error(w, "Certificate has already expired", http.StatusBadRequest)
 		return
 	}
 
@@ -196,6 +245,12 @@ func RevokeSertifikat(w http.ResponseWriter, r *http.Request) {
 		sertifikatID,
 	); err != nil {
 		http.Error(w, "Failed to revoke certificate", http.StatusInternalServerError)
+		return
+	}
+
+	if err := insertLogAktivitas(tx, userID, nil, "revoke_certificate",
+		fmt.Sprintf("User mencabut sertifikat digital #%d", sertifikatID)); err != nil {
+		http.Error(w, "Failed to save activity log", http.StatusInternalServerError)
 		return
 	}
 

@@ -179,6 +179,9 @@ func AjukanTandaTangan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = insertLogAktivitas(db.DB, pengajuID, &dokumenID, "upload",
+		fmt.Sprintf("User mengajukan dokumen '%s' ke %d penanda tangan", judul, len(penandaTangan)))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{

@@ -24,11 +24,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// if r.Method == http.MethodOptions {
-		// 	w.WriteHeader(http.StatusOK)
-		// 	return
-		// }
-
 		next.ServeHTTP(w, r)
 	})
 }
@@ -58,17 +53,6 @@ func main() {
 
 	http.HandleFunc("/api/dokumen/upload", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UploadDokumen))
 	http.HandleFunc("/api/dokumen/ajukan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.AjukanTandaTangan))
-	// http.HandleFunc("/api/dokumen", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumen))
-	// http.HandleFunc("/api/dokumen/", middleware.AuthMiddleware(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
-	// 	switch r.Method {
-	// 	case http.MethodGet:
-	// 		handlers.GetDokumenByID(w, r)
-	// 	case http.MethodPut:
-	// 		handlers.UpdateDokumen(w, r)
-	// 	default:
-	// 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	// 	}
-	// }))
 
 	// permintaan_ttd view
 	http.HandleFunc("GET /api/permintaan-ttd", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListPermintaanTTD))
@@ -80,7 +64,7 @@ func main() {
 	http.HandleFunc("GET /api/dokumen/ditandatangani", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListDokumenDitandatangani))
 
 	// unduh PDF
-	http.HandleFunc("GET /api/dokumen/{id}/download", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDownload))
+	http.HandleFunc("GET /api/dokumen/unduh/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.GetDokumenDownload))
 
 	// permintaan ttd reject, approve, sign
 	http.HandleFunc("POST /api/permintaan-ttd/{id}/setujui", middleware.AuthMiddleware(cfg.JWTSecret, handlers.SetujuiPermintaanTTD))
@@ -90,7 +74,7 @@ func main() {
 	// sertifikat digital
 	http.HandleFunc("POST /api/sertifikat", middleware.AuthMiddleware(cfg.JWTSecret, handlers.CreateSertifikat))
 	http.HandleFunc("GET /api/sertifikat", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListSertifikat))
-	http.HandleFunc("POST /api/sertifikat/{id}/revoke", middleware.AuthMiddleware(cfg.JWTSecret, handlers.RevokeSertifikat))
+	http.HandleFunc("PATCH /api/sertifikat/{id}/revoke", middleware.AuthMiddleware(cfg.JWTSecret, handlers.RevokeSertifikat))
 
 	// gambar tanda tangan & paraf
 	http.HandleFunc("POST /api/tanda-tangan", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UploadTandaTangan))

@@ -136,6 +136,9 @@ func UploadDokumen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = insertLogAktivitas(db.DB, userID, &dokumen.ID, "upload",
+		fmt.Sprintf("User mengunggah dokumen '%s' untuk ditandatangani sendiri", judul))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{

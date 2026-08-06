@@ -14,53 +14,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// func Register(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodPost {
-// 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-
-// 	var input struct {
-// 		Name     string `json:"name"`
-// 		Email    string `json:"email"`
-// 		Password string `json:"password"`
-// 	}
-
-// 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-// 		http.Error(w, "Invalid request body", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	if input.Name == "" || input.Email == "" || input.Password == "" {
-// 		http.Error(w, "Name, email, and password are required", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	hashedPassword, err := utils.HashPassword(input.Password)
-// 	if err != nil {
-// 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	var user models.User
-// 	err = db.DB.QueryRow(
-// 		"INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, created_at",
-// 		input.Name, input.Email, hashedPassword, "user",
-// 	).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.CreatedAt)
-
-// 	if err != nil {
-// 		http.Error(w, "Email already exists or failed to create user", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusCreated)
-// 	json.NewEncoder(w).Encode(map[string]interface{}{
-// 		"message": "User registered successfully",
-// 		"user":    user,
-// 	})
-// }
-
 func Login(cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

@@ -23,10 +23,6 @@ var validDokumenStatus = map[string]bool{
 	"ditolak":      true,
 }
 
-// ==========================================================
-// Week 8 - Dokumen Diunggah (dokumen yang pernah diunggah user)
-// ==========================================================
-
 type DokumenDiunggahItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -248,10 +244,6 @@ func GetDokumenDiunggahDetail(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(detail)
 }
 
-// ==========================================================
-// Week 9 - Dokumen Ditandatangani (riwayat dokumen selesai milik user)
-// ==========================================================
-
 type DokumenDitandatanganiItem struct {
 	ID            int       `json:"id"`
 	Judul         string    `json:"judul"`
@@ -320,11 +312,9 @@ func ListDokumenDitandatangani(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ==========================================================
 // Download PDF (bagian dari Minggu 9: "link unduh PDF")
 // Versi disk lokal Railway. Kalau nanti pindah ke R2, tinggal ganti
 // bagian "serve dari disk" di bawah jadi generate presigned URL.
-// ==========================================================
 
 var unsafeFilenameChars = regexp.MustCompile(`[^a-zA-Z0-9\-_]+`)
 
@@ -406,6 +396,10 @@ func GetDokumenDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	downloadName := fmt.Sprintf("%s.pdf", sanitizeFilename(judul))
+
+	_ = insertLogAktivitas(db.DB, userID, &dokumenID, "download",
+		fmt.Sprintf("User mengunduh dokumen '%s'", judul))
+
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
 	http.ServeFile(w, r, cleanPath)
