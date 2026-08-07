@@ -84,6 +84,10 @@ func main() {
 	http.HandleFunc("PUT /api/tanda-tangan/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.UpdateTandaTangan))
 	http.HandleFunc("DELETE /api/tanda-tangan/{id}", middleware.AuthMiddleware(cfg.JWTSecret, handlers.DeleteTandaTangan))
 
+	// log aktivitas
+	http.HandleFunc("GET /api/log-aktivitas", middleware.AuthMiddleware(cfg.JWTSecret, handlers.ListLogAktivitas))
+	http.HandleFunc("GET /api/log-aktivitas/semua", middleware.AdminMiddleware(cfg.JWTSecret, handlers.ListSemuaLogAktivitas))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
